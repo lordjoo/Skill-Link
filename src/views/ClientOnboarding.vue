@@ -168,17 +168,19 @@
 
 <script>
 import { clientAPI } from '@/api'
+import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
 
 export default {
   name: 'ClientOnboarding',
   setup() {
-    return { toast: useToast() }
+    return { toast: useToast(), auth: useAuth() }
   },
   data() {
     return {
       currentStep: 1,
       imageUrl: null,
+      photoFile: null,
       showOtpModal: false,
       sendingOtp: false,
       verifying: false,
@@ -204,9 +206,24 @@ export default {
       return ['Personal Info', 'Company Info', 'Verify phone'][n - 1]
     },
     handleFileUpload(event) {
-      // Decorative preview only — the photo is not uploaded here.
-      const file = event.target.files[0]
-      if (file) this.imageUrl = URL.createObjectURL(file)
+      const file = event.target.files && event.target.files[0]
+      if (!file) return
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        this.toast.error('Use a JPG, PNG or WEBP image.')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        this.toast.error('Image must be 5MB or smaller.')
+        return
+      }
+      this.photoFile = file
+      this.imageUrl = URL.createObjectURL(file)
+    },
+    // Normalise a URL: empty -> null; prepend https:// when the scheme is missing.
+    cleanUrl(value) {
+      const text = (value || '').trim()
+      if (!text) return null
+      return /^https?:\/\//i.test(text) ? text : `https://${text}`
     },
     nextStep() {
       if (this.currentStep === 1) {
@@ -275,10 +292,23 @@ export default {
           about: this.form.about.trim(),
           company_name: this.form.companyName.trim(),
           industry: this.form.industry,
-          website: this.form.website.trim(),
+          website: this.cleanUrl(this.form.website),
           company_description: this.form.description.trim()
         }
-        await clientAPI.updateClientProfile(payload)
+        const { data } = await clientAPI.updateClientProfile(payload)
+        // Sync the cached user so the profile header + navbar show the new name.
+        if (data?.data) {
+          this.auth.state.user = { ...this.auth.state.user, ...data.data }
+          localStorage.setItem('user', JSON.stringify(this.auth.state.user))
+        }
+        // Upload the chosen company photo (non-fatal if it fails).
+        if (this.photoFile) {
+          try {
+            const fd = new FormData()
+            fd.append('profile_picture', this.photoFile)
+            await clientAPI.updateProfilePicture(fd)
+          } catch (e) { /* keep going — profile text already saved */ }
+        }
         this.toast.success('Profile complete!')
         this.$router.push('/client-home')
       } catch (err) {

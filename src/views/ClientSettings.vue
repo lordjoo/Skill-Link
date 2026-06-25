@@ -33,6 +33,8 @@
           <div class="form-group"><label class="form-label">Email</label><input type="email" v-model="accountData.email" class="form-input" readonly></div>
           <div class="form-group"><label class="form-label">Username</label><input type="text" v-model="accountData.username" class="form-input" readonly></div>
           <div class="form-group"><label class="form-label">Account type</label><input type="text" v-model="accountData.accountType" class="form-input" readonly></div>
+
+          <PhoneNumberCard account-type="client" class="phone-block" />
         </div>
 
         <!-- Profile Information -->
@@ -173,13 +175,14 @@
 
 <script>
 import ClientNavbar from '@/components/ClientNavbar.vue'
+import PhoneNumberCard from '@/components/PhoneNumberCard.vue'
 import { clientAPI } from '@/api'
 import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
 
 export default {
   name: 'ClientSettings',
-  components: { ClientNavbar },
+  components: { ClientNavbar, PhoneNumberCard },
   setup() {
     return { auth: useAuth(), toast: useToast() }
   },
@@ -421,6 +424,7 @@ input:checked + .toggle-slider:before { transform: translateX(28px); }
 .btn-cancel { background-color: #FFFFFF; border: 2px solid #E63946; border-radius: 30px; padding: 14px 30px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.3s; color: #E63946; display: inline-flex; align-items: center; gap: 8px; margin-left: 15px; margin-top: 20px; }
 .btn-cancel:hover { background-color: #E63946; color: #FFFFFF; transform: translateY(-2px); }
 .form-actions { display: flex; gap: 15px; margin-top: 30px; }
+.phone-block { margin-top: 35px; }
 
 .robot-wrapper { position: fixed; right: 30px; top: 50%; transform: translateY(-50%); z-index: 100; animation: bounce 2s ease-in-out infinite; cursor: pointer; }
 @keyframes bounce { 0%, 100% { transform: translateY(-50%) translateY(0); } 50% { transform: translateY(-50%) translateY(-15px); } }

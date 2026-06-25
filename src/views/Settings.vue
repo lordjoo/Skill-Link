@@ -38,12 +38,18 @@
               <button class="btn-cancel" @click="cancelEdit">Cancel <i class="fas fa-times"></i></button>
             </template>
           </div>
+
+          <PhoneNumberCard account-type="user" class="phone-block" />
         </div>
 
         <!-- Profile Information -->
         <div v-if="activeTab === 'profile'" class="settings-section">
           <h3 class="section-subtitle">Profile Information</h3>
-          <div class="profile-photo-section"><img src="/assets/Headshot profile.jpg" alt="Profile" class="profile-photo"><button class="btn-change-photo" @click="changePhoto">Change Photo <i class="fas fa-camera"></i></button></div>
+          <div class="profile-photo-section">
+            <img :src="photoUrl || '/assets/Headshot profile.jpg'" alt="Profile" class="profile-photo">
+            <button class="btn-change-photo" :disabled="uploadingPhoto" @click="changePhoto">{{ uploadingPhoto ? 'Uploading…' : 'Change Photo' }} <i class="fas fa-camera"></i></button>
+            <input ref="photoInput" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" @change="onPhotoSelected">
+          </div>
           <div class="form-group"><label class="form-label">Full name</label><input type="text" v-model="profileData.fullName" class="form-input"></div>
           <div class="form-group"><label class="form-label">Speciality</label><input type="text" v-model="profileData.speciality" class="form-input" placeholder="e.g. frontend, design, writing — used to match you with jobs"></div>
           <div class="form-group"><label class="form-label">Bio</label><textarea v-model="profileData.bio" class="form-input" rows="3"></textarea></div>
@@ -151,13 +157,14 @@
 
 <script>
 import Navbar from '@/components/Navbar.vue'
+import PhoneNumberCard from '@/components/PhoneNumberCard.vue'
 import { userAPI } from '@/api'
 import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
 
 export default {
   name: 'Settings',
-  components: { Navbar },
+  components: { Navbar, PhoneNumberCard },
   setup() {
     return { auth: useAuth(), toast: useToast() }
   },
@@ -165,6 +172,8 @@ export default {
     return {
       showChatbot: false,
       savingProfile: false,
+      photoUrl: '',
+      uploadingPhoto: false,
       activeTab: 'account', isEditing: false, isEditingPassword: false, isEditingRecoveryEmail: false, isEditingRecoveryPhone: false, showPassword: false,
       accountData: { email: '', username: '', accountType: '' },
       profileData: { fullName: '', speciality: '', bio: '', university: '', major: '', skills: [] },
@@ -202,6 +211,7 @@ export default {
         this.profileData.university = p.university || ''
         this.profileData.major = p.college || ''
         this.profileData.skills = Array.isArray(p.skills) ? p.skills : []
+        this.photoUrl = p.profile_picture_url || ''
       }
     } catch (err) {
       // No profile yet — leave the form blank for the user to fill in.
@@ -245,7 +255,26 @@ export default {
     savePassword() { this.toast.info('Password change isn\'t available here yet — use "Forgot password".'); this.isEditingPassword = false; },
     saveRecoveryEmail() { this.toast.info('Recovery settings aren\'t saved yet.'); this.isEditingRecoveryEmail = false; },
     saveRecoveryPhone() { this.toast.info('Recovery settings aren\'t saved yet.'); this.isEditingRecoveryPhone = false; },
-    changePhoto() { this.toast.info('Photo upload is available from your profile soon.'); },
+    changePhoto() { this.$refs.photoInput.click() },
+    async onPhotoSelected(event) {
+      const file = event.target.files && event.target.files[0]
+      if (!file) return
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { this.toast.error('Use a JPG, PNG or WEBP image.'); return }
+      if (file.size > 5 * 1024 * 1024) { this.toast.error('Image must be 5MB or smaller.'); return }
+      this.uploadingPhoto = true
+      try {
+        const fd = new FormData()
+        fd.append('profile_picture', file)
+        const { data } = await userAPI.updateProfilePicture(fd)
+        this.photoUrl = data?.data?.profile?.profile_picture_url || data?.data?.file?.url || this.photoUrl
+        this.toast.success('Photo updated.')
+      } catch (err) {
+        this.toast.error(err.response?.data?.message || 'Could not upload the photo.')
+      } finally {
+        this.uploadingPhoto = false
+        event.target.value = ''
+      }
+    },
     addSkill() { const skill = prompt('Enter skill name:'); if (skill && skill.trim()) this.profileData.skills.push(skill.trim()); },
     removeSkill(index) { this.profileData.skills.splice(index, 1); },
     addLanguage() { this.toast.info('Adding languages is coming soon.'); }
@@ -339,6 +368,7 @@ input:checked + .toggle-slider:before { transform: translateX(28px); }
 .btn-cancel { background-color: #FFFFFF; border: 2px solid #E63946; border-radius: 30px; padding: 14px 30px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.3s; color: #E63946; display: inline-flex; align-items: center; gap: 8px; margin-left: 15px; margin-top: 20px; }
 .btn-cancel:hover { background-color: #E63946; color: #FFFFFF; transform: translateY(-2px); }
 .form-actions { display: flex; gap: 15px; margin-top: 30px; }
+.phone-block { margin-top: 35px; }
 .robot-wrapper { position: fixed; right: 30px; top: 50%; transform: translateY(-50%); z-index: 100; animation: bounce 2s ease-in-out infinite; cursor: pointer; }
 @keyframes bounce { 0%, 100% { transform: translateY(-50%) translateY(0); } 50% { transform: translateY(-50%) translateY(-15px); } }
 .robot-circle { width: 70px; height: 70px; border-radius: 50%; background-color: #FFFFFF; border: 3px solid #0C9892; display: flex; align-items: center; justify-content: center; box-shadow: 3px 3px 6px rgba(0,0,0,0.16); transition: transform 0.2s; overflow: hidden; }

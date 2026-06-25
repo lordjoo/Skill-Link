@@ -5,7 +5,7 @@
 
     <div v-else class="profile-container">
       <div class="profile-sidebar">
-        <div class="sidebar-profile-pic"><img src="/assets/pexels danx.jpg" alt="Profile" class="sidebar-profile-img"></div>
+        <div class="sidebar-profile-pic"><img :src="client?.profile_picture_url || '/assets/pexels danx.jpg'" alt="Profile" class="sidebar-profile-img"></div>
         <div class="sidebar-section">
           <h3 class="sidebar-title">Contact</h3>
           <div class="contact-item"><i class="fas fa-phone"></i><span>{{ phone }}</span></div>

@@ -27,7 +27,15 @@
           <h2 class="step-title">Personal Info</h2>
 
           <div class="photo-section">
-            <div class="photo-placeholder"><i class="fas fa-camera"></i></div>
+            <div
+              class="photo-placeholder"
+              :style="photoPreview ? { backgroundImage: `url(${photoPreview})` } : null"
+              title="Add a profile photo"
+              @click="$refs.photoInput.click()"
+            >
+              <i v-if="!photoPreview" class="fas fa-camera"></i>
+            </div>
+            <input ref="photoInput" type="file" accept="image/png,image/jpeg,image/webp" class="hidden-file" @change="onPhotoChange">
           </div>
 
           <div class="form-group">
@@ -146,12 +154,13 @@
 
 <script>
 import { userAPI } from '@/api'
+import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
 
 export default {
   name: 'StudentOnboarding',
   setup() {
-    return { toast: useToast() }
+    return { toast: useToast(), auth: useAuth() }
   },
   data() {
     return {
@@ -161,6 +170,8 @@ export default {
       verifying: false,
       codeSent: false,
       phoneVerified: false,
+      photoFile: null,
+      photoPreview: null,
       form: {
         firstName: '', lastName: '', address: '', dob: '', languages: '', about: '',
         speciality: '', skills: '', university: '', college: '', studyYears: '',
@@ -181,6 +192,27 @@ export default {
     // Split a comma-separated string into a clean array of non-empty values.
     splitList(value) {
       return (value || '').split(',').map((s) => s.trim()).filter(Boolean)
+    },
+    // Normalise a URL: empty -> null; add https:// if the user omitted the
+    // scheme, so the backend's strict URL validation accepts it.
+    cleanUrl(value) {
+      const text = (value || '').trim()
+      if (!text) return null
+      return /^https?:\/\//i.test(text) ? text : `https://${text}`
+    },
+    onPhotoChange(event) {
+      const file = event.target.files && event.target.files[0]
+      if (!file) return
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        this.toast.error('Use a JPG, PNG or WEBP image.')
+        return
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        this.toast.error('Image must be 5MB or smaller.')
+        return
+      }
+      this.photoFile = file
+      this.photoPreview = URL.createObjectURL(file)
     },
     namesFilled() {
       return Boolean(this.form.firstName.trim() && this.form.lastName.trim())
@@ -263,11 +295,24 @@ export default {
           university: this.clean(this.form.university),
           college: this.clean(this.form.college),
           study_years: this.clean(this.form.studyYears),
-          linkedin_url: this.clean(this.form.linkedin),
-          github_url: this.clean(this.form.github),
-          behance_url: this.clean(this.form.behance)
+          linkedin_url: this.cleanUrl(this.form.linkedin),
+          github_url: this.cleanUrl(this.form.github),
+          behance_url: this.cleanUrl(this.form.behance)
         }
-        await userAPI.updateMyProfile(payload)
+        const { data } = await userAPI.updateMyProfile(payload)
+        // Sync the cached user so the profile header + navbar show the new name.
+        if (data?.data?.user) {
+          this.auth.state.user = { ...this.auth.state.user, ...data.data.user }
+          localStorage.setItem('user', JSON.stringify(this.auth.state.user))
+        }
+        // Upload the chosen profile photo (non-fatal if it fails).
+        if (this.photoFile) {
+          try {
+            const fd = new FormData()
+            fd.append('profile_picture', this.photoFile)
+            await userAPI.updateProfilePicture(fd)
+          } catch (e) { /* keep going — profile text already saved */ }
+        }
         this.toast.success('Profile complete!')
         this.$router.push('/home')
       } catch (err) {
@@ -306,7 +351,9 @@ export default {
 .step-intro { font-size: 15px; color: #666; margin: -10px 0 25px; line-height: 1.5; }
 
 .photo-section { display: flex; justify-content: center; margin-bottom: 35px; }
-.photo-placeholder { width: 110px; height: 110px; border-radius: 50%; border: 3px solid #0C9892; display: flex; align-items: center; justify-content: center; color: #9CC9C6; font-size: 32px; background: linear-gradient(135deg, #F8FFFF 0%, #F0FAFA 100%); }
+.photo-placeholder { width: 110px; height: 110px; border-radius: 50%; border: 3px solid #0C9892; display: flex; align-items: center; justify-content: center; color: #9CC9C6; font-size: 32px; background: linear-gradient(135deg, #F8FFFF 0%, #F0FAFA 100%); background-size: cover; background-position: center; cursor: pointer; transition: transform 0.15s; }
+.photo-placeholder:hover { transform: scale(1.04); }
+.hidden-file { display: none; }
 
 .form-group { margin-bottom: 26px; }
 .form-label { display: block; font-size: 17px; font-weight: 700; color: #0C9892; margin-bottom: 10px; }

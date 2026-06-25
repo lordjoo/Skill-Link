@@ -6,6 +6,7 @@ export const clientAPI = {
   getClientProfile: () => api.get('/client/profile'),
   updateClientProfile: (data) =>
     api.put('/client/profile', data, isFormData(data) ? multipart : undefined),
+  updateProfilePicture: (formData) => api.put('/client/profile-picture', formData, multipart),
   getClients: (params) => api.get('/client/', { params }),
 
   sendPhoneOTP: (data) => api.post('/client/profile/phone/send-otp', data),
