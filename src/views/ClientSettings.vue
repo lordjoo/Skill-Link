@@ -41,8 +41,9 @@
         <div v-if="activeTab === 'profile'" class="settings-section">
           <h3 class="section-subtitle">Profile Information</h3>
           <div class="profile-photo-section">
-            <img src="/assets/pexels danx.jpg" alt="Profile" class="profile-photo">
-            <button class="btn-change-photo" @click="changePhoto">Change Photo <i class="fas fa-camera"></i></button>
+            <img :src="photoUrl || '/assets/pexels danx.jpg'" alt="Profile" class="profile-photo">
+            <button class="btn-change-photo" :disabled="uploadingPhoto" @click="changePhoto">{{ uploadingPhoto ? 'Uploading…' : 'Change Photo' }} <i class="fas fa-camera"></i></button>
+            <input ref="photoInput" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" @change="onPhotoSelected">
           </div>
           <div class="form-group"><label class="form-label">Full name</label><input type="text" v-model="profileData.fullName" class="form-input"></div>
           <div class="form-group"><label class="form-label">Bio</label><textarea v-model="profileData.bio" class="form-input" rows="3"></textarea></div>
@@ -190,6 +191,8 @@ export default {
     return {
       showChatbot: false,
       savingProfile: false,
+      photoUrl: '',
+      uploadingPhoto: false,
       activeTab: 'account',
       isEditing: false,
       isEditingPassword: false,
@@ -246,6 +249,7 @@ export default {
         const name = [c.first_name, c.last_name].filter(Boolean).join(' ')
         if (name) this.profileData.fullName = name
         this.profileData.bio = c.about || ''
+        this.photoUrl = c.profile_picture_url || ''
         this.profileData.companyName = c.company_name || ''
         this.profileData.industry = c.industry || ''
         this.profileData.website = c.website || ''
@@ -310,7 +314,30 @@ export default {
     toggleRecoveryPhoneEdit() { this.isEditingRecoveryPhone = true; },
     cancelRecoveryPhoneEdit() { this.isEditingRecoveryPhone = false; },
     saveRecoveryPhone() { this.toast.info('Recovery settings aren\'t saved yet.'); this.isEditingRecoveryPhone = false; },
-    changePhoto() { this.toast.info('Photo upload is available from your profile soon.'); },
+    changePhoto() { this.$refs.photoInput.click() },
+    async onPhotoSelected(event) {
+      const file = event.target.files && event.target.files[0]
+      if (!file) return
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { this.toast.error('Use a JPG, PNG or WEBP image.'); return }
+      if (file.size > 5 * 1024 * 1024) { this.toast.error('Image must be 5MB or smaller.'); return }
+      this.uploadingPhoto = true
+      try {
+        const fd = new FormData()
+        fd.append('profile_picture', file)
+        const { data } = await clientAPI.updateProfilePicture(fd)
+        this.photoUrl = data?.data?.client?.profile_picture_url || data?.data?.file?.url || this.photoUrl
+        if (this.photoUrl && this.auth.state.user) {
+          this.auth.state.user.profile_picture_url = this.photoUrl
+          localStorage.setItem('user', JSON.stringify(this.auth.state.user))
+        }
+        this.toast.success('Photo updated.')
+      } catch (err) {
+        this.toast.error(err.response?.data?.message || 'Could not upload the photo.')
+      } finally {
+        this.uploadingPhoto = false
+        event.target.value = ''
+      }
+    },
     addSkill() { const skill = prompt('Enter skill name:'); if (skill && skill.trim()) this.profileData.skills.push(skill.trim()); },
     removeSkill(index) { this.profileData.skills.splice(index, 1); },
     addLanguage() { this.toast.info('Adding languages is coming soon.'); }

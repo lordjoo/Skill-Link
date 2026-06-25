@@ -267,6 +267,11 @@ export default {
         fd.append('profile_picture', file)
         const { data } = await userAPI.updateProfilePicture(fd)
         this.photoUrl = data?.data?.profile?.profile_picture_url || data?.data?.file?.url || this.photoUrl
+        // Reflect the new photo in the navbar/menu immediately.
+        if (this.photoUrl && this.auth.state.user) {
+          this.auth.state.user.profile_picture_url = this.photoUrl
+          localStorage.setItem('user', JSON.stringify(this.auth.state.user))
+        }
         this.toast.success('Photo updated.')
       } catch (err) {
         this.toast.error(err.response?.data?.message || 'Could not upload the photo.')

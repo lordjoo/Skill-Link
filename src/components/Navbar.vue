@@ -15,7 +15,7 @@
           <span class="badge-notification" v-if="notifState.unreadCount > 0">{{ notifState.unreadCount }}</span>
         </div>
         <div class="profile-pic" @click="goToProfile">
-          <img src="/assets/Headshot profile.jpg" alt="Profile" class="rounded-full">
+          <img :src="avatar || '/assets/Headshot profile.jpg'" alt="Profile" class="rounded-full">
         </div>
         <button class="nav-icon-btn" :class="{ active: showMenu }" title="Menu" aria-label="Menu" @click="toggleMenu">
           <i class="fas fa-bars"></i>
@@ -53,16 +53,19 @@
 <script>
 import { useAuth } from '@/composables/useAuth'
 import { useNotifications } from '@/composables/useNotifications'
+import { useProfileAvatar } from '@/composables/useProfileAvatar'
 
 export default {
   name: 'Navbar',
   setup() {
     // Shared notification state (bell badge + dropdown list).
     const { state, load, markRead } = useNotifications()
-    return { notifState: state, loadNotifications: load, markNotificationRead: markRead }
+    const { avatar, loadAvatar } = useProfileAvatar()
+    return { notifState: state, loadNotifications: load, markNotificationRead: markRead, avatar, loadAvatar }
   },
   mounted() {
     this.loadNotifications()
+    this.loadAvatar()
   },
   data() {
     return {

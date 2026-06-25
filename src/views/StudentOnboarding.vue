@@ -310,7 +310,12 @@ export default {
           try {
             const fd = new FormData()
             fd.append('profile_picture', this.photoFile)
-            await userAPI.updateProfilePicture(fd)
+            const { data: picRes } = await userAPI.updateProfilePicture(fd)
+            const url = picRes?.data?.file?.url || picRes?.data?.profile?.profile_picture_url
+            if (url && this.auth.state.user) {
+              this.auth.state.user.profile_picture_url = url
+              localStorage.setItem('user', JSON.stringify(this.auth.state.user))
+            }
           } catch (e) { /* keep going — profile text already saved */ }
         }
         this.toast.success('Profile complete!')

@@ -289,7 +289,7 @@ export default {
         try {
           const profileRes = await userAPI.getMyProfile()
           const profile = profileRes.data.data || profileRes.data
-          this.userAvatar = profile.profile_picture || profile.avatar
+          this.userAvatar = profile?.profile_picture_url || null
         } catch (e) {
           console.log('Profile load skipped, using default')
         }
