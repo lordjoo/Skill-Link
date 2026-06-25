@@ -32,12 +32,10 @@ import FreelancerProfile from '@/views/FreelancerProfile.vue'
 // Auth pages
 import Login from '@/views/Login.vue'
 import Signup from '@/views/Signup.vue'
-import SignupStep1 from '@/views/SignupStep1.vue'
-import SignupStep2 from '@/views/SignupStep2.vue'
-import SignupStep3 from '@/views/SignupStep3.vue'
-import ClientSignupStep1 from '@/views/ClientSignupStep1.vue'
-import ClientSignupStep2 from '@/views/ClientSignupStep2.vue'
-import ClientSignupStep3 from '@/views/ClientSignupStep3.vue'
+// Post-register onboarding: welcome screen + role-based profile-completion wizard.
+import Onboarding from '@/views/Onboarding.vue'
+import StudentOnboarding from '@/views/StudentOnboarding.vue'
+import ClientOnboarding from '@/views/ClientOnboarding.vue'
 import ForgotPassword from '@/views/ForgotPassword.vue'
 import VerifyCode from '@/views/VerifyCode.vue'
 import ResetPassword from '@/views/ResetPassword.vue'
@@ -79,12 +77,10 @@ const routes = [
   // Auth
   { path: '/login', name: 'Login', component: Login, meta: { audience: 'public' } },
   { path: '/signup', name: 'Signup', component: Signup, meta: { audience: 'public' } },
-  { path: '/signup/step1', name: 'SignupStep1', component: SignupStep1, meta: { audience: 'public' } },
-  { path: '/signup/step2', name: 'SignupStep2', component: SignupStep2, meta: { audience: 'public' } },
-  { path: '/signup/step3', name: 'SignupStep3', component: SignupStep3, meta: { audience: 'public' } },
-  { path: '/client-signup/step1', name: 'ClientSignupStep1', component: ClientSignupStep1, meta: { audience: 'public' } },
-  { path: '/client-signup/step2', name: 'ClientSignupStep2', component: ClientSignupStep2, meta: { audience: 'public' } },
-  { path: '/client-signup/step3', name: 'ClientSignupStep3', component: ClientSignupStep3, meta: { audience: 'public' } },
+  // Onboarding (after registering): welcome -> role-based profile completion.
+  { path: '/onboarding', name: 'Onboarding', component: Onboarding, meta: { audience: 'any' } },
+  { path: '/onboarding/student', name: 'StudentOnboarding', component: StudentOnboarding, meta: { audience: 'student' } },
+  { path: '/onboarding/client', name: 'ClientOnboarding', component: ClientOnboarding, meta: { audience: 'client' } },
   { path: '/forgot-password', name: 'ForgotPassword', component: ForgotPassword, meta: { audience: 'public' } },
   { path: '/verify-code', name: 'VerifyCode', component: VerifyCode, meta: { audience: 'public' } },
   { path: '/reset-password', name: 'ResetPassword', component: ResetPassword, meta: { audience: 'public' } },

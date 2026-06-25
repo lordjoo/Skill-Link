@@ -9,7 +9,7 @@ export const userAPI = {
   updateProfilePicture: (formData) => api.put('/user/profile-picture', formData, multipart),
   getPublicProfile: (userId) => api.get(`/user/profiles/${userId}`),
 
-  sendPhoneOTP: () => api.post('/user/profile/phone/send-otp'),
+  sendPhoneOTP: (data) => api.post('/user/profile/phone/send-otp', data),
   verifyPhone: (data) => api.put('/user/profile/phone/verify', data),
 
   // Jobs & offers

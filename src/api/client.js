@@ -8,7 +8,7 @@ export const clientAPI = {
     api.put('/client/profile', data, isFormData(data) ? multipart : undefined),
   getClients: (params) => api.get('/client/', { params }),
 
-  sendPhoneOTP: () => api.post('/client/profile/phone/send-otp'),
+  sendPhoneOTP: (data) => api.post('/client/profile/phone/send-otp', data),
   verifyPhone: (data) => api.put('/client/profile/phone/verify', data),
 
   // Jobs & offers

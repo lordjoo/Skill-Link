@@ -75,11 +75,13 @@ export default {
 
       this.loading = true
       try {
-        const { register, login, homeRoute } = useAuth()
+        const { register, login } = useAuth()
         await register({ username: this.form.username, ...credentials })
         // Log in straight away so the new account has an active session.
         await login(credentials)
-        this.$router.push(homeRoute())
+        // Send new accounts through onboarding to complete their profile
+        // (this is where freelancers set their speciality, which drives matching).
+        this.$router.push('/onboarding')
       } catch (err) {
         this.error = err.response?.data?.message || 'Could not create your account. Please try again.'
       } finally {
