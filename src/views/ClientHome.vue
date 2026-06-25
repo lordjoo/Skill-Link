@@ -40,6 +40,27 @@
         </div>
       </div>
 
+      <div class="wallet-section">
+        <h2 class="section-heading">Wallet</h2>
+        <div class="wallet-card">
+          <div class="wallet-balances">
+            <div class="wallet-item">
+              <span class="wallet-label">Available</span>
+              <span class="wallet-value">${{ walletBalance }}</span>
+            </div>
+            <div class="wallet-divider"></div>
+            <div class="wallet-item">
+              <span class="wallet-label">Held in escrow</span>
+              <span class="wallet-value held">${{ walletHeld }}</span>
+            </div>
+          </div>
+          <div class="wallet-topup">
+            <input type="number" min="1" step="any" v-model.number="topUpAmount" placeholder="Amount ($)" class="wallet-input">
+            <button class="btn-topup" @click="goTopUp" :disabled="!topUpAmount">Top up</button>
+          </div>
+        </div>
+      </div>
+
       <div class="create-project-section">
         <h2 class="section-heading">Create project</h2>
         <button v-if="!showCreateForm" class="btn-create-project" @click="toggleCreateForm">+ Create new project</button>
@@ -60,23 +81,13 @@
             </div>
             <div class="form-row">
               <div class="form-group">
-                <input type="date" v-model="projectForm.deadline" class="form-input" required>
+                <input type="text" v-model="projectForm.speciality" placeholder="Speciality (e.g. frontend)" class="form-input" required>
               </div>
               <div class="form-group">
-                <select v-model="projectForm.category" class="form-input form-select" required>
-                  <option value="" disabled selected>Category</option>
-                  <option value="Design & Creative">Design & Creative</option>
-                  <option value="Programming & Technology">Programming & Technology</option>
-                  <option value="Writing & Translation">Writing & Translation</option>
-                  <option value="Audio & Video">Audio & Video</option>
-                  <option value="Marketing & Sales">Marketing & Sales</option>
-                  <option value="Support & Administration">Support & Administration</option>
-                  <option value="Legal">Legal</option>
-                  <option value="Engineering & Architecture">Engineering & Architecture</option>
-                  <option value="Business & Finance">Business & Finance</option>
-                </select>
+                <input type="text" v-model="projectForm.skills" placeholder="Needed skills (comma separated)" class="form-input">
               </div>
             </div>
+            <p class="form-hint">Tip: the speciality must match a freelancer's speciality for the job to appear in their feed.</p>
             <div class="form-group full-width">
               <textarea v-model="projectForm.description" placeholder="Description" class="form-input form-textarea" rows="5" required></textarea>
             </div>
@@ -89,56 +100,50 @@
 
       <div class="recent-projects-section">
         <h2 class="section-heading">Recent projects</h2>
-        <div class="projects-table">
+        <div class="projects-table" v-if="allProjects.length">
           <div class="table-header">
             <span class="col-title">Title</span>
-            <span class="col-state">State</span>
+            <span class="col-state">Status</span>
             <span class="col-date">Date</span>
+            <span class="col-action">Action</span>
           </div>
           <div class="table-body">
             <div class="table-row" v-for="project in allProjects" :key="project.id">
               <span class="col-title">{{ project.title }}</span>
-              <span class="col-state" :class="`state-${project.state?.toLowerCase().replace(' ', '')}`">
-                {{ project.state || 'pending' }}
+              <span class="col-state" :class="`state-${project.status}`">{{ statusLabel(project.status) }}</span>
+              <span class="col-date">{{ formatDate(project.created_at) }}</span>
+              <span class="col-action">
+                <button v-if="canApprove(project)" class="btn-approve" @click="approveCompletion(project)">Approve work</button>
+                <span v-else class="action-dash">—</span>
               </span>
-              <span class="col-date">{{ formatDate(project.created_at || project.date) }}</span>
             </div>
           </div>
-          <div class="table-footer" v-if="allProjects.length > 8">
-            <i class="fas fa-chevron-down"></i>
-          </div>
         </div>
+        <p v-else class="text-center text-gray-500 py-4">You haven't posted any projects yet.</p>
       </div>
 
       <div class="offers-section">
         <h2 class="section-heading">Offers</h2>
-        <div class="offers-carousel" v-if="offers.length > 0">
-          <button class="carousel-arrow left" @click="prevOffer" v-if="currentOfferSlide > 0">
-            <i class="fas fa-chevron-left"></i>
-          </button>
-          <div class="offers-track" :style="offerTrackStyle">
-            <div class="offer-card" v-for="(offer, index) in offers" :key="offer.id">
-              <div class="offer-header">
-                <div class="freelancer-info" @click="goToFreelancer(offer.freelancer?.slug || offer.slug)">
-                  <img :src="offer.freelancer?.avatar || offer.avatar || '/assets/default-avatar.png'" :alt="offer.freelancer?.name || offer.name" class="offer-avatar rounded-full">
-                  <span class="offer-name">{{ offer.freelancer?.name || offer.name }}</span>
-                </div>
-                <span class="offer-price">${{ offer.proposed_price || offer.price }}</span>
+        <div class="offers-grid" v-if="offers.length > 0">
+          <div class="offer-card" v-for="offer in offers" :key="offer.id">
+            <div class="offer-header">
+              <div class="freelancer-info">
+                <div class="offer-avatar-fallback"><i class="fas fa-user"></i></div>
+                <span class="offer-name">Freelancer #{{ offer.user_id }}</span>
               </div>
-              <div class="offer-details">
-                <span class="offer-project">{{ offer.job?.title || offer.project }}</span>
-                <span class="offer-duration">{{ offer.delivery_time ? offer.delivery_time + ' days' : offer.duration }}</span>
-              </div>
-              <button class="btn-accept" @click="acceptOffer(offer)" :disabled="offer.accepted">
-                {{ offer.accepted ? 'Accepted' : 'Accept' }}
-              </button>
+              <span class="offer-price">${{ offer.budget }}</span>
             </div>
+            <div class="offer-details">
+              <span class="offer-project">{{ offer.jobTitle }}</span>
+              <span class="offer-duration">{{ offer.time_to_finish }}</span>
+            </div>
+            <p class="offer-desc">{{ offer.description }}</p>
+            <button class="btn-accept" @click="acceptOffer(offer)" :disabled="accepting">
+              {{ accepting ? 'Accepting…' : 'Accept offer' }}
+            </button>
           </div>
-          <button class="carousel-arrow right" @click="nextOffer" v-if="currentOfferSlide < maxOfferSlides">
-            <i class="fas fa-chevron-right"></i>
-          </button>
         </div>
-        <p v-else class="text-center text-gray-500 py-4">No offers yet</p>
+        <p v-else class="text-center text-gray-500 py-4">No offers yet — they'll appear here when freelancers apply to your open jobs.</p>
       </div>
     </div>
 
@@ -171,291 +176,187 @@
 <script>
 import ClientNavbar from '@/components/ClientNavbar.vue'
 import { clientAPI } from '@/api'
+import { useToast } from '@/composables/useToast'
 
 export default {
   name: 'ClientHome',
   components: { ClientNavbar },
+  setup() {
+    return { toast: useToast() }
+  },
   data() {
     return {
       showBackButton: false,
       showChatbot: false,
-      showMenu: false, showMessages: false, showNotifications: false, showCreateForm: false,
-      messageCount: 3, notificationCount: 2, currentOfferSlide: 0, offersPerSlide: 3,
-      
+      showCreateForm: false,
+
       // API States
       loading: true,
       error: null,
       submitting: false,
-      
-      // Form Data
-      projectForm: { title: '', budget: '', deadline: '', category: '', description: '' },
-      
-      // Data from API
+      accepting: false,
+
+      // Form Data — maps to the backend job schema:
+      // { title, description, budget, speciality, needed_skills[] }
+      projectForm: { title: '', budget: '', speciality: '', skills: '', description: '' },
+
+      // Real data from the API
       clientProjects: [],
       offers: [],
-      clientProfile: null,
-      
-      // Fallback Data (in case API fails)
-      defaultProjects: [
-        { id: 1, title: 'Landing Page Design', state: 'pending', date: '12/12/2025' },
-        { id: 2, title: 'Portfolio Website Update', state: 'In progress', date: '12/05/2025' },
-        { id: 3, title: 'Logo Redesign', state: 'In progress', date: '11/26/2025' },
-        { id: 4, title: 'Social Media Banner', state: 'In progress', date: '11/21/2025' },
-        { id: 5, title: 'Simple Blog Setup', state: 'In progress', date: '11/16/2025' },
-        { id: 6, title: 'UI Fixes for Mobile View', state: 'Completed', date: '11/11/2025' },
-        { id: 7, title: 'Contact Form Integration', state: 'Completed', date: '10/27/2025' },
-        { id: 8, title: 'Header & Footer Redesign', state: 'Completed', date: '10/21/2025' },
-        { id: 9, title: 'Simple Admin Dashboard', state: 'Completed', date: '10/13/2025' },
-        { id: 10, title: 'Product Card UI Design', state: 'Completed', date: '10/08/2025' }
-      ],
-      defaultOffers: [
-        { id: 1, name: 'Salma Mustafa', slug: 'salma-mustafa', avatar: '/assets/pexels kaplanart.jpg', price: 40, project: 'Landing Page Design', duration: '3 days' },
-        { id: 2, name: 'Mohamed Osama', slug: 'mohamed-osama', avatar: '/assets/pexels italo.jpg', price: 30, project: 'Landing Page Design', duration: '4 days' },
-        { id: 3, name: 'Nora Fahmy', slug: 'nora-fahmy', avatar: '/assets/pexels sadiq.jpg', price: 50, project: 'Landing Page Design', duration: '2 days' }
-      ]
+      wallet: null,
+      topUpAmount: ''
     }
   },
-  
+
   async mounted() {
     if (document.referrer.includes('replit.app')) {
       this.showBackButton = true;
     }
     await this.loadDashboardData()
   },
-  
-  activated() {
-    // Refresh data when returning to this page
-    this.loadDashboardData()
-  },
-  
+
   computed: {
-    allProjects() { return [...this.clientProjects, ...this.defaultProjects]; },
-    totalProjects() { return this.allProjects.length; },
-    activeProjectsCount() { return this.allProjects.filter(p => p.state === 'In progress' || p.state === 'pending').length; },
-    finishedProjectsCount() { return this.allProjects.filter(p => p.state === 'Completed').length; },
-    maxOfferSlides() { return Math.max(0, this.offers.length - this.offersPerSlide); },
-    offerTrackStyle() { 
-      const offset = -this.currentOfferSlide * (100 / this.offersPerSlide); 
-      return { transform: `translateX(${offset}%)`, transition: 'transform 0.5s ease-in-out' }; 
-    }
+    allProjects() { return this.clientProjects },
+    totalProjects() { return this.clientProjects.length },
+    activeProjectsCount() {
+      return this.clientProjects.filter(p => p.status === 'open' || p.status === 'in_progress').length
+    },
+    finishedProjectsCount() {
+      return this.clientProjects.filter(p => p.status === 'completed').length
+    },
+    walletBalance() { return Number(this.wallet?.balance ?? 0).toFixed(2) },
+    walletHeld() { return Number(this.wallet?.held_balance ?? 0).toFixed(2) }
   },
-  
+
   methods: {
-    // === Chatbot Methods ===
     toggleChatbot() { this.showChatbot = !this.showChatbot; },
     closeChatbot() { this.showChatbot = false; },
-    
-    // === Navigation ===
+
     goBackToSkillLink() {
       const returnPage = localStorage.getItem('returnPage') || '/';
       window.location.href = returnPage;
     },
-    goToFreelancer(slug) { 
-      if (slug) {
-        this.$router.push(`/freelancer/${slug}`);
-      }
-    },
-    
-    // === Carousel ===
-    nextOffer() { if (this.currentOfferSlide < this.maxOfferSlides) this.currentOfferSlide++; },
-    prevOffer() { if (this.currentOfferSlide > 0) this.currentOfferSlide--; },
-    
-    // === API Integration ===
-    
+
+    // === Load everything: jobs, offers on open jobs, and the wallet ===
     async loadDashboardData() {
+      this.loading = true
+      this.error = null
       try {
-        this.loading = true
-        this.error = null
-        
-        // 1. Load client profile
-        try {
-          const profileRes = await clientAPI.getClientProfile()
-          this.clientProfile = profileRes.data.data || profileRes.data
-        } catch (e) {
-          console.log('Profile load skipped, using fallback')
+        // Jobs
+        const jobsRes = await clientAPI.getMyJobs()
+        this.clientProjects = jobsRes.data?.data || []
+
+        // Pending offers across the client's open jobs
+        const offers = []
+        for (const job of this.clientProjects) {
+          if (job.status !== 'open') continue
+          try {
+            const offersRes = await clientAPI.getJobOffers(job.id)
+            const jobOffers = offersRes.data?.data || []
+            offers.push(...jobOffers
+              .filter(o => o.status === 'pending')
+              .map(o => ({ ...o, jobTitle: job.title })))
+          } catch (e) { /* job may have no offers */ }
         }
-        
-        // 2. Load client's jobs/projects
+        this.offers = offers
+
+        // Wallet (best-effort)
         try {
-          const jobsRes = await clientAPI.getMyJobs()
-          const jobs = jobsRes.data.data || jobsRes.data || []
-          this.clientProjects = jobs.map(job => ({
-            id: job.id,
-            title: job.title,
-            state: job.status || job.state || 'pending',
-            created_at: job.created_at,
-            budget: job.budget,
-            deadline: job.deadline,
-            category: job.category,
-            description: job.description
-          }))
-        } catch (e) {
-          // Use fallback projects from localStorage or default
-          const saved = localStorage.getItem('clientProjects')
-          this.clientProjects = saved ? JSON.parse(saved) : []
-        }
-        
-        // 3. Load offers (from all jobs or a specific endpoint)
-        try {
-          // Try to get offers for each job, or use a general endpoint if available
-          const allOffers = []
-          for (const job of this.clientProjects.slice(0, 5)) { // Limit to avoid too many requests
-            try {
-              const offersRes = await clientAPI.getJobOffers(job.id)
-              const jobOffers = offersRes.data.data || offersRes.data || []
-              allOffers.push(...jobOffers.map(offer => ({
-                id: offer.id,
-                freelancer: offer.freelancer,
-                proposed_price: offer.proposed_price,
-                delivery_time: offer.delivery_time,
-                job: { title: job.title },
-                cover_letter: offer.cover_letter,
-                accepted: offer.status === 'accepted'
-              })))
-            } catch (e) {
-              // Skip if this job has no offers endpoint
-            }
-          }
-          this.offers = allOffers.length > 0 ? allOffers : this.defaultOffers
-        } catch (e) {
-          // Use fallback offers
-          this.offers = this.defaultOffers
-        }
-        
+          const walletRes = await clientAPI.getWallet()
+          this.wallet = walletRes.data?.data || null
+        } catch (e) { /* wallet optional */ }
       } catch (err) {
-        console.error('Dashboard load error:', err)
-        this.error = 'Could not load some data. Showing fallback content.'
-        // Still show fallback data
-        this.offers = this.defaultOffers
+        this.error = err.response?.data?.message || 'Could not load your dashboard.'
+        this.clientProjects = []
+        this.offers = []
       } finally {
         this.loading = false
       }
     },
-    
+
     async refreshData() {
-      this.loading = true
       await this.loadDashboardData()
     },
-    
+
     toggleCreateForm() { this.showCreateForm = !this.showCreateForm; },
-    
+
     async publishProject() {
-      if (!this.projectForm.title || !this.projectForm.budget || !this.projectForm.category) {
-        alert('Please fill all required fields')
+      if (!this.projectForm.title || !this.projectForm.budget || !this.projectForm.speciality) {
+        this.toast.error('Please fill in title, budget and speciality.')
         return
       }
-      
+
+      this.submitting = true
       try {
-        this.submitting = true
-        
-        const jobData = {
+        const needed_skills = this.projectForm.skills
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+
+        await clientAPI.createJob({
           title: this.projectForm.title,
-          budget: this.projectForm.budget,
-          deadline: this.projectForm.deadline,
-          category: this.projectForm.category,
           description: this.projectForm.description,
-          status: 'pending'
-        }
-        
-        const response = await clientAPI.createJob(jobData)
-        const newJob = response.data.data || response.data
-        
-        // Add to local list
-        this.clientProjects.unshift({
-          id: newJob.id,
-          title: newJob.title,
-          state: newJob.status || 'pending',
-          created_at: newJob.created_at,
-          ...newJob
+          budget: Number(this.projectForm.budget),
+          speciality: this.projectForm.speciality.trim(),
+          needed_skills
         })
-        
-        // Also save to localStorage as fallback
-        let saved = JSON.parse(localStorage.getItem('clientProjects') || '[]')
-        saved.unshift({
-          id: newJob.id,
-          title: newJob.title,
-          state: newJob.status || 'pending',
-          date: this.formatDate(newJob.created_at)
-        })
-        localStorage.setItem('clientProjects', JSON.stringify(saved))
-        
-        alert('Project published successfully! 🎉')
-        this.projectForm = { title: '', budget: '', deadline: '', category: '', description: '' }
+
+        this.toast.success('Project published.')
+        this.projectForm = { title: '', budget: '', speciality: '', skills: '', description: '' }
         this.showCreateForm = false
-        
+        await this.loadDashboardData()
       } catch (err) {
-        console.error('Error creating project:', err)
-        
-        // Fallback: save to localStorage only
-        const today = new Date()
-        const formattedDate = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`
-        const newProject = {
-          id: Date.now(),
-          title: this.projectForm.title,
-          state: 'pending',
-          date: formattedDate,
-          budget: this.projectForm.budget,
-          deadline: this.projectForm.deadline,
-          category: this.projectForm.category,
-          description: this.projectForm.description
-        }
-        let savedProjects = JSON.parse(localStorage.getItem('clientProjects') || '[]')
-        savedProjects.unshift(newProject)
-        localStorage.setItem('clientProjects', JSON.stringify(savedProjects))
-        
-        alert('Project saved locally! (Backend unavailable)')
-        this.projectForm = { title: '', budget: '', deadline: '', category: '', description: '' }
-        this.showCreateForm = false
-        this.loadDashboardData()
-        
+        this.toast.error(err.response?.data?.message || 'Could not publish the project.')
       } finally {
         this.submitting = false
       }
     },
-    
+
+    // === Accept an offer: holds the budget in escrow from the client's wallet ===
     async acceptOffer(offer) {
+      this.accepting = true
       try {
-        // Call API to accept the offer (if backend is ready)
-        if (offer.id) {
-          await clientAPI.acceptOffer(offer.id)
-        }
-        
-        this.$router.push({
-          path: '/payment',
-          query: {
-            offerId: offer.id,
-            freelancerName: offer.freelancer?.name || offer.name,
-            freelancerSlug: offer.freelancer?.slug || offer.slug,
-            freelancerAvatar: offer.freelancer?.avatar || offer.avatar,
-            price: offer.proposed_price || offer.price,
-            projectTitle: offer.job?.title || offer.project,
-            deliveryTime: offer.delivery_time || offer.duration,
-            coverLetter: offer.cover_letter
-          }
-        })
-        
+        await clientAPI.acceptOffer(offer.id)
+        this.toast.success('Offer accepted — funds are held in escrow and a chat room is open.')
+        await this.loadDashboardData()
       } catch (err) {
-        console.error('Error accepting offer:', err)
-        
-        // Fallback: Navigate anyway with fallback data
-        this.$router.push({
-          path: '/payment',
-          query: {
-            offerId: offer.id || Date.now(),
-            freelancerName: offer.freelancer?.name || offer.name,
-            freelancerSlug: offer.freelancer?.slug || offer.slug,
-            freelancerAvatar: offer.freelancer?.avatar || offer.avatar,
-            price: offer.proposed_price || offer.price,
-            projectTitle: offer.job?.title || offer.project,
-            deliveryTime: offer.delivery_time || offer.duration,
-            coverLetter: offer.cover_letter
-          }
-        })
+        const msg = err.response?.data?.message || ''
+        if (/insufficient/i.test(msg)) {
+          this.toast.error('Not enough wallet balance — top up your wallet to accept this offer.')
+        } else {
+          this.toast.error(msg || 'Could not accept this offer.')
+        }
+      } finally {
+        this.accepting = false
       }
     },
-    
-    // === Helper Methods ===
-    
+
+    // === Approve completed work: releases the held funds to the freelancer ===
+    async approveCompletion(job) {
+      try {
+        await clientAPI.approveCompletion(job.id)
+        this.toast.success('Completion approved — funds released to the freelancer.')
+        await this.loadDashboardData()
+      } catch (err) {
+        this.toast.error(err.response?.data?.message || 'Could not approve completion.')
+      }
+    },
+
+    // Whether the freelancer has submitted work that the client can approve.
+    canApprove(job) {
+      return job.status === 'in_progress' && job.user_submitted_completion_at && !job.client_approved_completion_at
+    },
+
+    // Top up the wallet via the (mock) payment gateway on the Payment screen.
+    goTopUp() {
+      this.$router.push({ path: '/payment', query: { topup: '1', price: this.topUpAmount || '', projectTitle: 'Wallet top-up' } })
+    },
+
+    statusLabel(status) {
+      const labels = { open: 'Open', in_progress: 'In progress', completed: 'Completed', cancelled: 'Cancelled' }
+      return labels[status] || status || 'Open'
+    },
+
     formatDate(dateString) {
       if (!dateString) return 'Recently'
       const date = new Date(dateString)
@@ -490,6 +391,23 @@ export default {
 .stat-number { font-size: 42px; font-weight: 700; color: #000000; line-height: 1; margin-bottom: 8px; }
 .stat-label { font-size: 16px; color: #666; font-weight: 500; }
 
+/* Wallet */
+.wallet-section { margin-bottom: 40px; }
+.wallet-card { background: linear-gradient(135deg, #0C9892 0%, #14B5A5 100%); border-radius: 18px; padding: 26px 30px; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; box-shadow: 0 8px 22px rgba(12,152,146,0.25); color: #fff; }
+.wallet-balances { display: flex; align-items: center; gap: 28px; }
+.wallet-item { display: flex; flex-direction: column; gap: 4px; }
+.wallet-label { font-size: 14px; opacity: 0.85; }
+.wallet-value { font-size: 30px; font-weight: 700; line-height: 1; }
+.wallet-value.held { opacity: 0.9; }
+.wallet-divider { width: 1px; height: 44px; background: rgba(255,255,255,0.35); }
+.wallet-topup { display: flex; gap: 10px; }
+.wallet-input { width: 140px; padding: 12px 16px; border: none; border-radius: 25px; font-size: 16px; outline: none; }
+.btn-topup { background: #fff; color: #0C9892; border: none; border-radius: 25px; padding: 12px 24px; font-weight: 700; cursor: pointer; transition: transform 0.15s; }
+.btn-topup:hover:not(:disabled) { transform: translateY(-2px); }
+.btn-topup:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.form-hint { font-size: 13px; color: #888; margin: -6px 0 18px; }
+
 .create-project-section { margin-bottom: 40px; }
 .btn-create-project { width: 100%; padding: 16px 30px; background: linear-gradient(135deg, #0C9892 0%, #14B5A5 100%); color: #FFFFFF; border: none; border-radius: 30px; font-size: 18px; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 3px 3px 8px rgba(12, 152, 146, 0.3); }
 .btn-create-project:hover { background: linear-gradient(135deg, #0a827d 0%, #129e96 100%); transform: translateY(-2px); box-shadow: 5px 5px 12px rgba(12, 152, 146, 0.4); }
@@ -520,18 +438,24 @@ export default {
 .table-row:last-child { border-bottom: none; }
 .col-title { flex: 2; font-size: 16px; color: #000; font-weight: 500; }
 .col-state { flex: 1; font-size: 15px; font-weight: 600; }
-.col-date { flex: 1; font-size: 15px; color: #666; text-align: right; }
-.state-pending { color: #000000; }
-.state-inprogress { color: #3B82F6; }
+.col-date { flex: 1; font-size: 15px; color: #666; }
+.col-action { flex: 1; text-align: right; }
+.state-open { color: #0C9892; }
+.state-in_progress { color: #3B82F6; }
 .state-completed { color: #22C55E; }
+.state-cancelled { color: #999; }
+.btn-approve { background: linear-gradient(135deg, #0C9892 0%, #14B5A5 100%); color: #fff; border: none; border-radius: 20px; padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform 0.15s; }
+.btn-approve:hover { transform: translateY(-1px); }
+.action-dash { color: #ccc; }
 .table-footer { text-align: center; padding: 15px; border-top: 1px solid #E0E0E0; cursor: pointer; transition: background-color 0.2s; }
 .table-footer:hover { background-color: #F8FFFF; }
 .table-footer i { font-size: 20px; color: #0C9892; }
 
 .offers-section { margin-bottom: 40px; }
-.offers-carousel { position: relative; display: flex; align-items: center; overflow: hidden; padding: 0 50px; }
-.offers-track { display: flex; width: 100%; gap: 20px; }
-.offer-card { background-color: #FFFFFF; border-radius: 15px; padding: 20px; box-shadow: 3px 3px 6px rgba(0,0,0,0.1); border: 1px solid #E0E0E0; min-width: calc(33.333% - 14px); flex-shrink: 0; transition: transform 0.2s; }
+.offers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.offer-card { background-color: #FFFFFF; border-radius: 15px; padding: 20px; box-shadow: 3px 3px 6px rgba(0,0,0,0.1); border: 1px solid #E0E0E0; transition: transform 0.2s; }
+.offer-avatar-fallback { width: 40px; height: 40px; border-radius: 50%; background: #E8F6F5; color: #0C9892; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.offer-desc { font-size: 14px; color: #555; line-height: 1.5; margin: 0 0 15px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .offer-card:hover { transform: translateY(-3px); box-shadow: 4px 4px 10px rgba(0,0,0,0.15); }
 .offer-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; padding-bottom: 12px; border-bottom: 1px solid #E0E0E0; }
 .freelancer-info { display: flex; align-items: center; gap: 12px; cursor: pointer; flex: 1; }
