@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply font-sans text-ink bg-white;
+    margin: 0;
+  }
+
+  /* Brand-coloured text selection. */
+  ::selection {
+    background: rgba(12, 152, 146, 0.18);
+  }
+
+  /* Accessible keyboard focus ring (only shows for keyboard users, not clicks). */
+  :focus-visible {
+    outline: 2px solid #0C9892;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Slim, branded scrollbar. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #b9d9d6 transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #cfe3e1;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: #0C9892;
+    background-clip: content-box;
+  }
+
+  /* Respect users who prefer less motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Page transition used by <router-view> in App.vue. Lives here (not scoped) so
+   the transition classes are global. */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Reusable loading shimmer. Add the class to a block-level placeholder element:
+   <div class="skeleton" style="height: 80px"></div> */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #ecefee;
+  border-radius: 12px;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  animation: skeleton-shimmer 1.4s infinite;
+}
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* Shared UI primitives reused across pages, so buttons/inputs/cards stay
+   consistent instead of each view redefining its own styles. */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3
+           font-semibold text-white shadow-soft transition
+           hover:bg-primary-dark hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]
+           disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-primary
+           px-6 py-3 font-semibold text-primary transition hover:bg-primary-light
+           active:scale-[0.98];
+  }
+
+  .input-field {
+    @apply w-full rounded-full border border-gray-300 bg-white px-5 py-3 text-base outline-none
+           transition focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+
+  .card {
+    @apply rounded-card bg-white p-8 shadow-card transition hover:-translate-y-0.5;
+  }
+
+  /* Reusable empty/placeholder block for "nothing here yet" states. */
+  .empty-state {
+    @apply mx-auto max-w-xl rounded-card border border-gray-200 bg-white p-12 text-center text-gray-500;
+  }
+  .empty-state .empty-icon {
+    @apply mb-4 block text-4xl text-primary;
+  }
+
+  .form-error {
+    @apply mt-2 text-sm text-red-500;
+  }
+
+  /* SkillLink wordmark */
+  .brand-logo {
+    @apply cursor-pointer text-3xl font-bold;
+  }
+  .brand-logo .brand-s {
+    @apply font-script text-primary;
+  }
+}
